@@ -1,0 +1,141 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import re
+from sklearn.preprocessing import LabelEncoder
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.multiclass import OneVsRestClassifier
+from sklearn.metrics import accuracy_score
+import pickle
+
+# Load the dataset
+df = pd.read_csv(r'C:/Users/Yukta Sharma/Downloads/archive.zip')
+
+# Clean the 'Category' column
+df['Category'] = df['Category'].astype(str)
+
+# Encode categorical labels
+le = LabelEncoder()
+le.fit(df['Category'])
+df['Category'] = le.transform(df['Category'])
+
+# Clean the 'Resume' column
+def cleanResume(txt):
+    cleanTxt = re.sub('http\S+\s', ' ', txt)
+    cleanTxt = re.sub('RT|cc', ' ', cleanTxt)
+    cleanTxt = re.sub('@\S+', ' ', cleanTxt)
+    cleanTxt = re.sub('#\S+', ' ', cleanTxt)
+    cleanTxt = re.sub('[%s]' % re.escape("""!"#$&%'()*+,-./:;<=>'?@[\]^_{|}"""), ' ', cleanTxt)
+    cleanTxt = re.sub(r"(?<=\w)'(?=\w)", '', cleanTxt)
+    cleanTxt = re.sub(r'[^\x100-\x7f]', ' ', cleanTxt)
+    cleanTxt = re.sub('\s+', ' ', cleanTxt)
+    return cleanTxt
+
+df['Resume'] = df['Resume'].apply(lambda x: cleanResume(x))
+
+# Vectorization
+tfidf = TfidfVectorizer(stop_words='english')
+tfidf.fit(df['Resume'])
+requiredText = tfidf.transform(df['Resume'])
+
+# Splitting the data
+X_train, X_test, y_train, y_test = train_test_split(requiredText, df['Category'], test_size=0.2, random_state=42)
+
+# Training the model
+clf = OneVsRestClassifier(KNeighborsClassifier())
+clf.fit(X_train, y_train)
+ypred = clf.predict(X_test)
+print("Test Accuracy:", accuracy_score(y_test, ypred))
+
+# Saving the model and vectorizer
+pickle.dump(tfidf, open('tfidf.pkl', 'wb'))
+pickle.dump(clf, open('clf.pkl', 'wb'))
+
+# Define the resume for prediction
+myresume = """ 9711236161 (Mobile)
+anurag.gb26@gmail.com
+www.linkedin.com/in/anuragbhardwaj26 (LinkedIn)
+Top Skills
+Microsoft Azure
+Azure DevOps Services
+AngularJS
+Languages
+French (Elementary)
+English (Professional Working)
+Certifications
+UX Design Fundamentals (Coursera)
+Hadoop Platform and ApplicationFramework (Coursera)
+Digital Marketing (Coursera)
+Introduction to User ExperienceDesign (Coursera)
+Crash Course on Python (Coursera)
+Anurag Bhardwaj
+Developer at Connor, Clark & Lunn | Ex - Accenture |
+New Delhi, Delhi, India
+Summary
+Dynamic and detail-oriented software engineer with experience inweb application development and site reliability engineering. Proventrack record in optimizing code, automating processes, and resolvingcritical production issues to ensure 100% service availability. Adeptat creating user-friendly and responsive web applications usingReactJS, and developing dynamic web pages with HTML, CSS, andJavaScript.Passionate about leveraging technology to solve real-worldproblems, I'm committed to continuous learning and growth.
+Experience
+Connor, Clark & Lunn Financial Group (CC&L)
+Analyst
+April 2024 - Present (6 months)
+Gurugram, Haryana, India
+Developer/SREDeveloper:- Implementing end-to-end features for in-house applications using Angular.- Creating YAML pipelines for various processes to streamline developmentworkflows.- Utilizing Microsoft Azure to deploy and manage web services.Site Reliability Engineer (SRE):- Monitoring Windows and SQL servers and acknowledging alerts set upthrough the Spotlight tool.- Handling Jira access queries and ensuring seamless operations.
+Accenture
+2 years 9 months
+Page 1 of 2
+Software Engineer
+September 2022 - February 2024 (1 year 6 months)
+Gurugram, Haryana, India
+Developed user friendly responsive web application using ReactJS for USbased client. Worked on reusable components for better code optimisation andspeed of of the web app.Developed dynamic web pages using HTML, CSS and JavaScript by retrievingdata from the backend APIs. Utilised user inputs to send data to backend forexecution of tasks.Created a scheduler in SpringBoot to automate the process of updatingproduct details in database every week, reducing 120 minutes of manual effortper month.Debugged & resolved critical production issues through ServiceNow incidentsand ensured service restoration by maintaining 100% availability.
+Associate Software Engineer
+June 2021 - August 2022 (1 year 3 months)
+Gurugram, Haryana, India
+Troubleshooted & debugged to provide user-oriented technical support to over100 users monthly for an e-commerce application through ServiceNow tickets..Performed production testing on UI for monthly release and changemanagement achieving 100% efficiency during maintenance phases.Developed SOPs to optimise workflows and facilitated training of teammembers resulting in reduction of over 10 working hours.
+Education
+Manav Rachna College of Engg.Faridabad
+Bachelor of Technology - BTech, Computer Science · (2017 - 2021)
+Tagore International School (Vasant Vihar)
+High school, Science · (2015 - 2017)
+"""
+
+# Process and predict
+cleaned_resume = cleanResume(myresume)  # Clean the input resume
+input_features = tfidf.transform([cleaned_resume])  # Transform the cleaned resume using the trained tfidf vectorizer
+prediction_id = clf.predict(input_features)[0]  # Make prediction using the trained classifier
+
+# Map prediction to category name
+category_mapping = {
+    15: "Java Developer",
+    23: "Testing",
+    8: "DevOps Engineer",
+    20: "Python Developer",
+    24: "Web Designing",
+    12: "HR",
+    13: "Hadoop",
+    3: "Blockchain",
+    10: "ETL Developer",
+    18: "Operations Manager",
+    6: "Data Science",
+    22: "Sales",
+    16: "Mechanical Engineer",
+    1: "Arts",
+    7: "Database",
+    11: "Electrical Engineering",
+    14: "Health and fitness",
+    19: "PMO",
+    4: "Business Analyst",
+    9: "DotNet Developer",
+    2: "Automation Testing",
+    17: "Network Security Engineer",
+    21: "SAP Developer",
+    5: "Civil Engineer",
+    0: "Advovate",
+}
+
+category_name = category_mapping.get(prediction_id, "unknown")
+print("Predicted Category:", category_name)
+print("Prediction ID:", prediction_id)
+
+
